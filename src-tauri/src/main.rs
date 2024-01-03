@@ -2,12 +2,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use image::{imageops, RgbaImage};
+use rand::{rngs::SmallRng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use wassily::prelude::*;
 
 const W: f32 = 1024.0;
-const CELL_SIZE: u32 = 20;
 
 // Shared state for the tauri app.
 struct State {
@@ -20,6 +20,13 @@ struct Picture {
     width: u32,
     height: u32,
     data: Vec<u8>,
+}
+
+#[derive(Deserialize)]
+enum Style {
+    Dots,
+    VLines,
+    HLines,
 }
 
 fn main() {
@@ -52,8 +59,8 @@ fn get_image(path: &str, state: tauri::State<State>) -> Result<Picture, String> 
 }
 
 #[tauri::command]
-fn gen_image(state: tauri::State<State>) -> Picture {
-    let img = generate(state);
+fn gen_image(cell: u32, state: tauri::State<State>) -> Picture {
+    let img = generate(cell, state);
     let scale = W / img.width() as f32;
     let nwidth = (img.width() as f32 * scale) as u32;
     let nhight = (img.height() as f32 * scale) as u32;
@@ -65,14 +72,15 @@ fn gen_image(state: tauri::State<State>) -> Picture {
     }
 }
 
-fn generate(state: tauri::State<State>) -> RgbaImage {
+fn generate(cell: u32, state: tauri::State<State>) -> RgbaImage {
+    let mut rng = SmallRng::from_entropy();
     let in_img = state
         .base_image
         .lock()
         .expect("Could not lock state mutex")
         .clone();
-    let width = CELL_SIZE * in_img.width();
-    let height = CELL_SIZE * in_img.height();
+    let width = cell * in_img.width();
+    let height = cell * in_img.height();
     let mut canvas = Canvas::new(width, height);
     canvas.fill(*WHITE);
     for x in 0..in_img.width() {
@@ -80,14 +88,28 @@ fn generate(state: tauri::State<State>) -> RgbaImage {
             let pixel = in_img.get_pixel(x, y);
             let color = (Color::from_rgba8(pixel[0], pixel[1], pixel[2], 255)).grayscale();
             let radius = 1.0 - color.red();
-            Shape::new()
-                .circle(
-                    pt(x * CELL_SIZE + CELL_SIZE / 2, y * CELL_SIZE + CELL_SIZE / 2),
-                    radius * CELL_SIZE as f32 * 0.5,
-                )
-                .fill_color(*SADDLEBROWN)
-                .no_stroke()
-                .draw(&mut canvas);
+            // Shape::new()
+            //     .circle(
+            //         pt(x * cell + cell / 2, y * cell + cell / 2),
+            //         radius * cell as f32 * 0.5,
+            //     )
+            //     .fill_color(*BLACK)
+            //     .no_stroke()
+            //     .draw(&mut canvas);
+            for l in 0..cell {
+                let s = rng.gen_bool(radius as f64);
+                if s {
+                    Shape::new()
+                        .line(
+                            pt(x * cell + l, y * cell),
+                            pt(x * cell + l, y * cell + cell),
+                        )
+                        .no_fill()
+                        .stroke_color(*BLACK)
+                        .stroke_weight(1.0)
+                        .draw(&mut canvas);
+                }
+            }
         }
     }
     let out_img = canvas.into();
@@ -95,7 +117,7 @@ fn generate(state: tauri::State<State>) -> RgbaImage {
 }
 
 #[tauri::command]
-fn save_image(path: &str, state: tauri::State<State>) {
-    let gen = generate(state);
+fn save_image(path: &str, cell: u32, state: tauri::State<State>) {
+    let gen = generate(cell, state);
     let _ = gen.save(path);
 }
