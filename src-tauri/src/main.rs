@@ -60,6 +60,21 @@ fn get_image(path: &str, state: tauri::State<State>) -> Result<Picture, String> 
     })
 }
 
+pub fn halton_seq(width: f32, height: f32, n: u32, seed: u64) -> Vec<Point> {
+    let mut rng = SmallRng::seed_from_u64(seed);
+    let k: u32 = rng.gen();
+    let xs = (k..n + k).map(|i| halton(i, 2));
+    let ys = (k..n + k).map(|i| halton(i, 3));
+    xs.zip(ys)
+        .map(|p| {
+            Point::from_xy(
+                (p.0 * (width as f32)).clamp(0.0, width as f32 - 1.0),
+                (p.1 * (height as f32)).clamp(0.0, width as f32 - 1.0),
+            )
+        })
+        .collect()
+}
+
 #[tauri::command]
 fn gen_image(cell: u32, style: Style, state: tauri::State<State>) -> Picture {
     let img = generate(cell, style, state);
@@ -166,7 +181,7 @@ fn generate(cell: u32, style: Style, state: tauri::State<State>) -> RgbaImage {
                 }
                 Style::Stipple => {
                     let n = t * (cell * cell) as f32;
-                    let ps = halton_23(cell, cell, n as u32, rng.gen());
+                    let ps = halton_seq(cell as f32, cell as f32, n as u32, rng.gen());
                     let qs = ps
                         .into_iter()
                         .map(|p| pt((x * cell) as f32 + p.x, (y * cell) as f32 + p.y));
