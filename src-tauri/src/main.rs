@@ -27,6 +27,8 @@ enum Style {
     Dots,
     VLines,
     HLines,
+    Cross,
+    Stipple,
 }
 
 fn main() {
@@ -59,8 +61,8 @@ fn get_image(path: &str, state: tauri::State<State>) -> Result<Picture, String> 
 }
 
 #[tauri::command]
-fn gen_image(cell: u32, state: tauri::State<State>) -> Picture {
-    let img = generate(cell, state);
+fn gen_image(cell: u32, style: Style, state: tauri::State<State>) -> Picture {
+    let img = generate(cell, style, state);
     let scale = W / img.width() as f32;
     let nwidth = (img.width() as f32 * scale) as u32;
     let nhight = (img.height() as f32 * scale) as u32;
@@ -72,7 +74,7 @@ fn gen_image(cell: u32, state: tauri::State<State>) -> Picture {
     }
 }
 
-fn generate(cell: u32, state: tauri::State<State>) -> RgbaImage {
+fn generate(cell: u32, style: Style, state: tauri::State<State>) -> RgbaImage {
     let mut rng = SmallRng::from_entropy();
     let in_img = state
         .base_image
@@ -87,27 +89,90 @@ fn generate(cell: u32, state: tauri::State<State>) -> RgbaImage {
         for y in 0..in_img.height() {
             let pixel = in_img.get_pixel(x, y);
             let color = (Color::from_rgba8(pixel[0], pixel[1], pixel[2], 255)).grayscale();
-            let radius = 1.0 - color.red();
-            // Shape::new()
-            //     .circle(
-            //         pt(x * cell + cell / 2, y * cell + cell / 2),
-            //         radius * cell as f32 * 0.5,
-            //     )
-            //     .fill_color(*BLACK)
-            //     .no_stroke()
-            //     .draw(&mut canvas);
-            for l in 0..cell {
-                let s = rng.gen_bool(radius as f64);
-                if s {
+            let t = 1.0 - color.red();
+            match style {
+                Style::Dots => {
                     Shape::new()
-                        .line(
-                            pt(x * cell + l, y * cell),
-                            pt(x * cell + l, y * cell + cell),
+                        .circle(
+                            pt(x * cell + cell / 2, y * cell + cell / 2),
+                            t * cell as f32 * 0.6036, // mid way between sqrt(2)/2 and 1/2.
                         )
-                        .no_fill()
-                        .stroke_color(*BLACK)
-                        .stroke_weight(1.0)
+                        .fill_color(*BLACK)
+                        .no_stroke()
                         .draw(&mut canvas);
+                }
+                Style::VLines => {
+                    for l in 0..cell {
+                        let s = rng.gen_bool(t as f64);
+                        if s {
+                            Shape::new()
+                                .line(
+                                    pt(x * cell + l, y * cell),
+                                    pt(x * cell + l, y * cell + cell),
+                                )
+                                .no_fill()
+                                .stroke_color(*BLACK)
+                                .stroke_weight(1.0)
+                                .draw(&mut canvas);
+                        }
+                    }
+                }
+                Style::HLines => {
+                    for l in 0..cell {
+                        let s = rng.gen_bool(t as f64);
+                        if s {
+                            Shape::new()
+                                .line(
+                                    pt(x * cell, y * cell + l),
+                                    pt(x * cell + cell, y * cell + l),
+                                )
+                                .no_fill()
+                                .stroke_color(*BLACK)
+                                .stroke_weight(1.0)
+                                .draw(&mut canvas);
+                        }
+                    }
+                }
+                Style::Cross => {
+                    let c = Color::from_rgba8(0, 0, 0, 127);
+                    for l in 0..cell {
+                        let s = rng.gen_bool(t as f64);
+                        if s {
+                            Shape::new()
+                                .line(
+                                    pt(x * cell + l, y * cell),
+                                    pt(x * cell + l, y * cell + cell),
+                                )
+                                .no_fill()
+                                .stroke_color(c)
+                                .stroke_weight(1.0)
+                                .draw(&mut canvas);
+                        }
+                    }
+                    for l in 0..cell {
+                        let s = rng.gen_bool(t as f64);
+                        if s {
+                            Shape::new()
+                                .line(
+                                    pt(x * cell, y * cell + l),
+                                    pt(x * cell + cell, y * cell + l),
+                                )
+                                .no_fill()
+                                .stroke_color(c)
+                                .stroke_weight(1.0)
+                                .draw(&mut canvas);
+                        }
+                    }
+                }
+                Style::Stipple => {
+                    let n = t * (cell * cell) as f32;
+                    let ps = halton_23(cell, cell, n as u32, rng.gen());
+                    let qs = ps
+                        .into_iter()
+                        .map(|p| pt((x * cell) as f32 + p.x, (y * cell) as f32 + p.y));
+                    for p in qs {
+                        canvas.dot(p.x, p.y, *BLACK)
+                    }
                 }
             }
         }
@@ -117,7 +182,7 @@ fn generate(cell: u32, state: tauri::State<State>) -> RgbaImage {
 }
 
 #[tauri::command]
-fn save_image(path: &str, cell: u32, state: tauri::State<State>) {
-    let gen = generate(cell, state);
+fn save_image(path: &str, cell: u32, style: Style, state: tauri::State<State>) {
+    let gen = generate(cell, style, state);
     let _ = gen.save(path);
 }

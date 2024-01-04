@@ -48,6 +48,7 @@ async function generate() {
     // Run the contamination algorithm on the input image.
     const picture: Picture = await invoke("gen_image", {
       cell: controls.cellSize,
+      style: controls.style,
     });
     // Show the contaminated image in the window.
     displayImage(picture.width, picture.height, picture.data);
@@ -60,7 +61,7 @@ async function generate() {
 async function save() {
   try {
     const file = (await dialog.save({
-      defaultPath: "contaminated.png",
+      defaultPath: "seg.png",
       filters: [
         {
           name: "PNG",
@@ -70,6 +71,7 @@ async function save() {
     })) as string;
     await invoke("save_image", {
       cell: controls.cellSize,
+      style: controls.style,
       path: file,
     });
   } catch (error) {
@@ -80,6 +82,7 @@ async function save() {
 // Controls for the gui, two sliders a picker and 3 buttons.
 let controls = {
   cellSize: 10,
+  style: "Dots",
   chooseImage: async function () {
     chooseImage();
   },
@@ -92,6 +95,9 @@ let controls = {
 };
 
 gui.add(controls, "cellSize", 1, 100, 1).name("Cell Size");
+gui
+  .add(controls, "style", ["Dots", "VLines", "HLines", "Cross", "Stipple"])
+  .name("Style");
 gui.add(controls, "chooseImage").name("Choose Image");
 gui.add(controls, "generate").name("Generate");
 gui.add(controls, "save").name("Save");
