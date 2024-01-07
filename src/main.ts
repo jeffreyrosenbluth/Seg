@@ -96,7 +96,15 @@ let controls = {
 
 gui.add(controls, "cellSize", 1, 100, 1).name("Cell Size");
 gui
-  .add(controls, "style", ["Dots", "VLines", "HLines", "Cross", "Stipple"])
+  .add(controls, "style", [
+    "Dots",
+    "VLines",
+    "HLines",
+    "Cross",
+    "Stipple",
+    "Grid",
+    "Multi",
+  ])
   .name("Style");
 gui.add(controls, "chooseImage").name("Choose Image");
 gui.add(controls, "generate").name("Generate");
