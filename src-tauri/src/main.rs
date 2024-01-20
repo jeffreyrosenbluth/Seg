@@ -225,12 +225,12 @@ fn generate(cell: u32, style: Style, state: tauri::State<State>) -> RgbaImage {
                 Style::Multi => {
                     let hue = pixel_to_hue(pixel);
                     match hue {
-                        15..=45 => cross(cell, x, y, t, &mut canvas),  // orange
-                        46..=75 => dots(cell, x, y, t, &mut canvas),   // yellow
+                        15..=45 => cross(cell, x, y, t, &mut canvas), // orange
+                        46..=75 => stipple(cell, x, y, t, &mut rng, &mut canvas), // yellow
                         76..=165 => vline(cell, x, y, t, &mut canvas), // green
-                        166..=255 => stipple(cell, x, y, t, &mut rng, &mut canvas), // blue
+                        166..=255 => dots(cell, x, y, t, &mut canvas), // blue
                         256..=345 => grid(cell, x, y, t, &mut canvas), // purple
-                        _ => hline(cell, x, y, t, &mut canvas),        // red
+                        _ => hline(cell, x, y, t, &mut canvas),       // red
                     }
                 }
             }
